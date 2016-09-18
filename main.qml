@@ -3,8 +3,8 @@ import QtQuick.Controls 1.5
 
 ApplicationWindow {
     visible: true
-    width: 640
-    height: 480
+    width: 300
+    height: 440
     title: qsTr("Hello World")
 
     TimePicker {
