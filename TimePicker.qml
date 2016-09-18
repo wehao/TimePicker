@@ -13,6 +13,17 @@ FocusScope {
     property bool isHours: true
     property bool prefer24Hour: false
 
+    Keys.onUpPressed: {
+        var date = internal.timePicked
+
+        if(isHours)
+            date.setHours(internal.timePicked.getHours() + 1)
+        else
+            date.setMinutes(internal.timePicked.getMinutes() + 1)
+
+        internal.timePicked = date
+    }
+
     QtObject {
         id: internal
         property bool resetFlag: false
@@ -29,10 +40,10 @@ FocusScope {
                     amPmPicker.isAm = true
                 }
 
-                pathView.currentIndex = hours
+                hoursPathView.currentIndex = hours
 
-                //var minutes = internal.timePicked.getMinutes()
-                //minutesPathView.currentIndex = minutes
+                var minutes = internal.timePicked.getMinutes()
+                minutesPathView.currentIndex = minutes
             }
         }
     }
@@ -52,7 +63,7 @@ FocusScope {
             id: titleRec
             width: parent.width
             height: 80
-            color: "lightyellow"
+            color: "black"
 
             Row {
                 id: row
@@ -62,11 +73,17 @@ FocusScope {
                 Label {
                     id: hourLabel
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "24"
+                    text: internal.timePicked.getHours()
                     font.pixelSize: 56
+                    color: isHours? "white" : "#99ffffff"
 
                     MouseArea {
-
+                        anchors.fill: parent
+                        onClicked: {
+                            if(!isHours){
+                                setIsHours(true)
+                            }
+                        }
                     }
                 }
 
@@ -74,7 +91,7 @@ FocusScope {
                     anchors.verticalCenter: parent.verticalCenter
                     text: ":"
                     font.pixelSize: 56
-
+                    color: "white"
                     MouseArea {
 
                     }
@@ -82,11 +99,17 @@ FocusScope {
 
                 Label {
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "59"
+                    text: internal.timePicked.getMinutes() < 10 ? "0" + internal.timePicked.getMinutes() : internal.timePicked.getMinutes()
                     font.pixelSize: 56
+                    color: !isHours? "white" : "#99ffffff"
 
                     MouseArea {
-
+                        anchors.fill: parent
+                        onClicked: {
+                            if(isHours){
+                                setIsHours(false)
+                            }
+                        }
                     }
                 }
             }
@@ -98,6 +121,7 @@ FocusScope {
                         left: row.right
                         leftMargin: 12
                     }
+                    visible: !prefer24Hour
 
                     spacing: 2
 
@@ -106,18 +130,22 @@ FocusScope {
                 Label {
                     text: "AM"
                     font.pixelSize: 16
+                    color: amPmPicker.isAm ? "white" : "#99ffffff"
 
                     MouseArea {
-
+                        anchors.fill: parent
+                        onClicked: amPmPicker.isAm = true
                     }
                 }
 
                 Label {
                     text: "PM"
                     font.pixelSize: 16
+                    color: !amPmPicker.isAm ? "white" : "#99ffffff"
 
                     MouseArea {
-
+                        anchors.fill: parent
+                        onClicked: amPmPicker.isAm = false
                     }
                 }
             }
@@ -154,27 +182,42 @@ FocusScope {
                     y: clockPadding
                     color: "red"
                     transformOrigin: Item.Bottom
+                    antialiasing: true
 
                     Connections {
-                        target: pathView
+                        target: hoursPathView
                         onCurrentIndexChanged: {
                             if(isHours)
                                 pointer.setAngle()
                         }
                     }
 
+                    Connections {
+                        target: minutesPathView
+                        onCurrentIndexChanged: {
+                            if(!isHours)
+                                pointer.setAngle()
+                        }
+                    }
+
+                    Connections {
+                        target: timePicker
+                        onIsHoursChanged: pointer.setAngle()
+                    }
+
                     Behavior on rotation {
                         RotationAnimation {
                             id: pointerRotation
-                            duration: 200
+                            duration: 180
                             direction: RotationAnimation.Shortest
                         }
                     }
 
                     function setAngle()
                     {
-                        //var idx = isHours ? pathView.currentIndex : minutesPathView.currentIndex
-                        var idx = pathView.currentIndex
+                        //console.log("fff")
+                        var idx = isHours ? hoursPathView.currentIndex : minutesPathView.currentIndex
+                        //var idx = hoursPathView.currentIndex
                         var angle
                         if(isHours)
                             angle = (360 / ((prefer24Hour) ? 24 : 12)) * idx
@@ -200,6 +243,7 @@ FocusScope {
                         height: 40
                         color: "red"
                         radius: width / 2
+                        antialiasing: true
                     }
                 }
 
@@ -208,8 +252,8 @@ FocusScope {
 
                     Rectangle {
                         id: rectangle
-                        width: 20
-                        height: 20
+                        width: !isHours && modelData % 5 == 0 ? 12  : isHours ? 30  : 8
+                        height: !isHours && modelData % 5 == 0 ? 12  : isHours ? 30  : 8
                         color: "transparent"
 
                         property bool isSelected: false
@@ -217,8 +261,11 @@ FocusScope {
 
                         Label {
                             anchors.centerIn: parent
+                            visible: modelData >= 0 && (isHours ? true : modelData % 5 == 0)
                             text: {  //return pathView.model.data < 10 && !isHours ? "0" + modelData : modelData
-                                return modelData;
+                                //return modelData;
+                                var model = isHours ? hoursPathView.model : minutesPathView.model
+                                return model.data < 10 && !isHours ? "0" + modelData : modelData
                             }
                         }
 
@@ -287,24 +334,24 @@ FocusScope {
                         globalY = parentMouseArea.mapToItem(null, mouse.x, mouse.y).y
                     }
 
-//                    onPositionChanged: {
-//                        if(containsPress)
-//                        {
-//                            leftButtonPressed = true
-//                            globalX = parentMouseArea.mapToItem(null, mouse.x, mouse.y).x
-//                            globalY = parentMouseArea.mapToItem(null, mouse.x, mouse.y).y
-//                        }
-//                        else
-//                        {
-//                            leftButtonPressed = false
-//                        }
-//                    }
+                    onPositionChanged: {
+                        if(parentMouseArea.pressed)
+                        {
+                            leftButtonPressed = true
+                            globalX = parentMouseArea.mapToItem(null, mouse.x, mouse.y).x
+                            globalY = parentMouseArea.mapToItem(null, mouse.x, mouse.y).y
+                        }
+                        else
+                        {
+                            leftButtonPressed = false
+                        }
+                    }
                 }
 
                 PathView {
-                    id: pathView
+                    id: hoursPathView
                     anchors.fill: parent
-                    visible: true
+                    visible: isHours
                     model: {
                         return getTimeList(12, isZeroBased)
                     }
@@ -314,7 +361,8 @@ FocusScope {
                     delegate: pathViewItem
 
                     highlight: pathViewHighlight
-                    highlightRangeMode: PathView.NoHighlightRange
+
+                    highlightRangeMode: PathView.NoHighlightRange   //control the number of clock not to move
                     highlightMoveDuration: 200
 
                     path: Path {
@@ -338,12 +386,48 @@ FocusScope {
                         }
                     }
 
-//                    onCurrentIndexChanged: {
-//                        var newText = currentIndex
-//                        if(currentIndex == 0 && !prefer24Hour)
-//                            newText = 12
-//                        hourLabel.text = newText
-//                    }
+                    //connect the pathview currentIndex to hourLabel
+                    onCurrentIndexChanged: {
+                        var newText = currentIndex
+                        if(currentIndex == 0 && !prefer24Hour)
+                            newText = 12
+                        hourLabel.text = newText
+                    }
+                }
+
+                PathView {
+                    id: minutesPathView
+                    anchors.fill: parent
+                    visible: !isHours
+                    model: {
+                        return getTimeList(60, true)
+                    }
+                    highlightRangeMode: PathView.NoHighlightRange
+                    highlightMoveDuration: 200
+                    delegate: pathViewItem
+                    highlight: pathViewHighlight
+                    interactive: false
+
+                    path: Path {
+                        startX: circle.width / 2
+                        startY: clockPadding
+
+                        PathArc {
+                            x: circle.width / 2
+                            y: circle.height - clockPadding
+                            radiusX: circle.width / 2 - clockPadding
+                            radiusY: circle.width / 2 - clockPadding
+                            useLargeArc: false
+                        }
+
+                        PathArc {
+                            x: circle.width / 2
+                            y: clockPadding
+                            radiusX: circle.width / 2 - clockPadding
+                            radiusY: circle.width / 2 - clockPadding
+                            useLargeArc: false
+                        }
+                    }
                 }
             }
         }
@@ -360,6 +444,19 @@ FocusScope {
             items[i] = i;
         }
         return items;
+    }
+
+    function setIsHours(_isHours) {
+        if(_isHours == isHours)
+            return
+
+        if(!internal.resetFlag)
+            internal.resetFlag = true
+
+        var prevRotation = pointerRotation.duration
+        pointerRotation.duration = 0
+        isHours = _isHours
+        pointerRotation.duration = prevRotation
     }
 
 }
